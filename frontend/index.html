@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Assistant</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#ffffff; --bg2:#f7f7f5; --bg3:#f0efe9;
+    --text:#1a1a1a; --text2:#6b6b6b; --text3:#9b9b9b;
+    --border:rgba(0,0,0,0.12); --border2:rgba(0,0,0,0.25);
+    --purple:#534AB7; --purple-d:#3C3489; --purple-bg:#EEEDFE; --purple-t:#26215C;
+    --teal:#1D9E75; --teal-d:#0F6E56; --teal-bg:#E1F5EE; --teal-t:#085041;
+    --amber-bg:#FAEEDA; --amber-t:#412402;
+    --coral-bg:#FAECE7; --coral-t:#4A1B0C;
+    --green-bg:#EAF3DE; --green-t:#27500A;
+    --r:8px; --rl:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1c1c1c; --bg2:#242424; --bg3:#2c2c2a;
+      --text:#f0efe9; --text2:#a0a09a; --text3:#6b6b68;
+      --border:rgba(255,255,255,.10); --border2:rgba(255,255,255,.22);
+      --purple-bg:#26215C; --purple-t:#CECBF6;
+      --teal-bg:#04342C; --teal-t:#9FE1CB;
+      --amber-bg:#412402; --amber-t:#FAC775;
+      --coral-bg:#4A1B0C; --coral-t:#F5C4B3;
+      --green-bg:#173404; --green-t:#C0DD97;
+    }
+  }
+  html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text)}
+  .app{display:grid;grid-template-columns:1fr 284px;height:100vh;max-width:1100px;margin:0 auto;background:var(--bg);border-left:.5px solid var(--border);border-right:.5px solid var(--border)}
+
+  /* ── Chat column ── */
+  .chat-col{display:flex;flex-direction:column;overflow:hidden}
+  .chat-header{padding:13px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .logo{width:32px;height:32px;border-radius:var(--r);background:var(--purple-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .logo svg{width:17px;height:17px;stroke:var(--purple);fill:none;stroke-width:2}
+  .htext h1{font-size:15px;font-weight:500}
+  .htext p{font-size:12px;color:var(--text2)}
+  .nav-link{font-size:12px;padding:5px 12px;border-radius:var(--r);border:.5px solid var(--border2);color:var(--text2);text-decoration:none;margin-left:auto}
+  .nav-link:hover{background:var(--bg2)}
+
+  /* upload bar */
+  .upload-bar{padding:10px 20px;border-bottom:.5px solid var(--border);flex-shrink:0}
+  .drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:10px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+  .drop-zone:hover,.drop-zone.dragover{border-color:var(--purple);background:var(--purple-bg)}
+  .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .drop-icon{width:28px;height:28px;border-radius:6px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .drop-icon svg{width:15px;height:15px;stroke:var(--text2);fill:none;stroke-width:1.8}
+  .drop-text{flex:1}
+  .drop-text p{font-size:13px;color:var(--text)}
+  .drop-text span{font-size:11px;color:var(--text3)}
+  .upload-progress{display:none;height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+  .upload-progress-fill{height:3px;background:var(--purple);border-radius:2px;width:0;transition:width .3s}
+  .file-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+  .file-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+  .pill-ok{background:var(--green-bg);color:var(--green-t)}
+  .pill-err{background:var(--coral-bg);color:var(--coral-t)}
+  .pill-loading{background:var(--amber-bg);color:var(--amber-t)}
+
+  .messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+  .msg{display:flex;flex-direction:column;gap:4px;max-width:82%}
+  .msg.user{align-self:flex-end;align-items:flex-end}
+  .msg.bot{align-self:flex-start;align-items:flex-start}
+  .bubble{padding:11px 15px;border-radius:var(--rl);font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+  .msg.user .bubble{background:var(--purple-bg);color:var(--purple-t);border-bottom-right-radius:4px}
+  .msg.bot  .bubble{background:var(--bg2);color:var(--text);border:.5px solid var(--border);border-bottom-left-radius:4px}
+  .msg-meta{font-size:11px;color:var(--text3)}
+  .cursor{display:inline-block;width:2px;height:14px;background:var(--text2);margin-left:2px;vertical-align:middle;animation:blink .8s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .thinking{display:flex;gap:5px;align-items:center;padding:12px 15px;background:var(--bg2);border-radius:var(--rl);border-bottom-left-radius:4px;border:.5px solid var(--border)}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:bounce 1.3s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+  .err-bubble{padding:11px 15px;border-radius:var(--rl);border-bottom-left-radius:4px;font-size:14px;background:var(--coral-bg);color:var(--coral-t);border:.5px solid var(--border)}
+  .stream-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--teal-t);background:var(--teal-bg);padding:2px 8px;border-radius:20px;margin-bottom:4px}
+  .sdot{width:5px;height:5px;border-radius:50%;background:var(--teal);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .input-area{padding:14px 20px;border-top:.5px solid var(--border);flex-shrink:0}
+  .input-row{display:flex;gap:10px;align-items:flex-end}
+  textarea{flex:1;resize:none;font-size:14px;padding:9px 14px;border-radius:var(--r);border:.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;line-height:1.5;min-height:40px;max-height:120px;overflow-y:auto}
+  textarea:focus{outline:none;border-color:var(--purple)}
+  textarea::placeholder{color:var(--text3)}
+  .send-btn{width:40px;height:40px;border-radius:var(--r);border:none;background:var(--purple);color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s}
+  .send-btn:hover:not(:disabled){background:var(--purple-d)}
+  .send-btn:disabled{background:var(--border2);cursor:not-allowed}
+  .send-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2}
+  .hint{font-size:11px;color:var(--text3);margin-top:6px}
+
+  /* ── Sidebar ── */
+  .side-col{border-left:.5px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow:hidden}
+  .side-header{padding:13px 16px;font-size:13px;font-weight:500;border-bottom:.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px}
+  .side-header svg{width:15px;height:15px;stroke:var(--text2);fill:none;stroke-width:1.8}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;border-bottom:.5px solid var(--border);flex-shrink:0}
+  .stat{background:var(--bg);border-radius:var(--r);padding:10px 12px}
+  .stat-label{font-size:11px;color:var(--text2);margin-bottom:3px}
+  .stat-val{font-size:22px;font-weight:500;color:var(--text)}
+  .stat-val.green{color:var(--teal-d)}
+  .citations{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+  .cite-label{font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+  .cite-card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:10px 12px}
+  .cite-file{font-size:12px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .cite-file svg{width:13px;height:13px;stroke:var(--purple);fill:none;stroke-width:1.8;flex-shrink:0}
+  .score-bar{height:3px;border-radius:2px;background:var(--border);margin-top:6px}
+  .score-fill{height:3px;border-radius:2px;background:var(--teal);transition:width .5s}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);text-align:center;padding:24px}
+  .empty svg{width:26px;height:26px;stroke:var(--border2);fill:none;stroke-width:1.5}
+  .empty p{font-size:12px;line-height:1.6}
+
+  /* ingested files list in sidebar */
+  .ingested-section{padding:0 16px 12px;border-bottom:.5px solid var(--border);flex-shrink:0}
+  .ingested-label{font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+  .ingested-file{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:3px 0}
+  .ingested-file svg{width:12px;height:12px;stroke:var(--purple);fill:none;stroke-width:1.8;flex-shrink:0}
+
+
+  .rewrite-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);background:var(--bg2);border:.5px solid var(--border);padding:2px 8px;border-radius:20px;margin-bottom:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rewrite-badge svg{width:11px;height:11px;stroke:var(--text3);fill:none;stroke-width:1.8;flex-shrink:0}
+  @media(max-width:700px){.app{grid-template-columns:1fr}.side-col{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Chat column ── -->
+  <div class="chat-col">
+    <div class="chat-header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <div class="htext"><h1>RAG assistant</h1><p id="mode-label">Streaming · drag a file to add documents</p></div>
+      <a href="/analytics.html" class="nav-link">Analytics</a>
+    </div>
+
+    <!-- Upload zone -->
+    <div class="upload-bar">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.ppt,.txt" multiple>
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="drop-text">
+          <p>Drop files here or click to upload</p>
+          <span>PDF, DOCX, PPTX, TXT &nbsp;·&nbsp; Max 50 MB each</span>
+        </div>
+      </div>
+      <div class="upload-progress" id="uploadProgress">
+        <div class="upload-progress-fill" id="uploadFill"></div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="msg bot">
+        <div class="bubble">Hello! Drop a PDF, DOCX, or PPTX above to add documents, then ask me anything about them.</div>
+        <div class="msg-meta">just now</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="qinput" placeholder="Ask a question about your documents…" rows="1"></textarea>
+        <button class="send-btn" id="sendbtn" aria-label="Send" onclick="sendQuery()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+      </div>
+      <p class="hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</p>
+    </div>
+  </div>
+
+  <!-- ── Sidebar ── -->
+  <div class="side-col">
+    <div class="side-header">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Query stats
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-label">Retrieved</div><div class="stat-val" id="stat-retrieved">—</div></div>
+      <div class="stat"><div class="stat-label">Used</div><div class="stat-val green" id="stat-used">—</div></div>
+      <div class="stat"><div class="stat-label">Time</div><div class="stat-val" id="stat-time">—</div></div>
+      <div class="stat"><div class="stat-label">Sources</div><div class="stat-val" id="stat-sources">—</div></div>
+    </div>
+
+    <div class="ingested-section" id="ingestedSection" style="display:none">
+      <div class="ingested-label">Ingested this session</div>
+      <div id="ingestedList"></div>
+    </div>
+
+    <div class="citations" id="citations">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <p>Sources appear here after your first query.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let busy = false;
+  const ingestedFiles = [];
+
+  const messagesEl  = document.getElementById('messages');
+  const inputEl     = document.getElementById('qinput');
+  const sendBtn     = document.getElementById('sendbtn');
+  const citationsEl = document.getElementById('citations');
+  const fileInput   = document.getElementById('fileInput');
+  const dropZone    = document.getElementById('dropZone');
+  const fileList    = document.getElementById('fileList');
+  const uploadProg  = document.getElementById('uploadProgress');
+  const uploadFill  = document.getElementById('uploadFill');
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function now() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+
+  function scroll() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+  function addMsg(text, role) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = now();
+    wrap.appendChild(bubble);
+    wrap.appendChild(meta);
+    messagesEl.appendChild(wrap);
+    scroll();
+    return { wrap, bubble };
+  }
+
+  function addSystemMsg(text, type='ok') {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    const bubble = document.createElement('div');
+    bubble.className = type === 'error' ? 'err-bubble' : 'bubble';
+    bubble.style.fontSize = '13px';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    messagesEl.appendChild(wrap);
+    scroll();
+  }
+
+  function addThinking() {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.innerHTML = '<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+    messagesEl.appendChild(wrap);
+    scroll();
+    return wrap;
+  }
+
+  function addBotStreamMsg(rewritten='') {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    // Rewritten query badge (shown if query was changed)
+    if (rewritten) {
+      const rw = document.createElement('div');
+      rw.className = 'rewrite-badge';
+      rw.title = rewritten;
+      rw.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Searched as: ' + rewritten;
+      wrap.appendChild(rw);
+    }
+    const badge = document.createElement('div');
+    badge.className = 'stream-badge';
+    badge.innerHTML = '<div class="sdot"></div> Streaming';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    bubble.appendChild(cursor);
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = now();
+    wrap.appendChild(badge);
+    wrap.appendChild(bubble);
+    wrap.appendChild(meta);
+    messagesEl.appendChild(wrap);
+    scroll();
+    return { wrap, bubble, badge, cursor };
+  }
+
+  function updateStats({ chunks_retrieved, chunks_used, sources, elapsed }) {
+    if (chunks_retrieved != null) document.getElementById('stat-retrieved').textContent = chunks_retrieved;
+    if (chunks_used      != null) document.getElementById('stat-used').textContent      = chunks_used;
+    if (sources          != null) document.getElementById('stat-sources').textContent   = sources.length || '—';
+    if (elapsed          != null) document.getElementById('stat-time').textContent      = elapsed.toFixed(2)+'s';
+  }
+
+  function updateCitations(sources) {
+    citationsEl.innerHTML = '';
+    if (!sources?.length) {
+      citationsEl.innerHTML = '<p style="font-size:12px;color:var(--text3)">No sources found.</p>';
+      return;
+    }
+    const label = document.createElement('div');
+    label.className = 'cite-label';
+    label.textContent = 'Sources used';
+    citationsEl.appendChild(label);
+    sources.forEach((src, i) => {
+      const score = Math.max(90 - i * 12, 40);
+      const card = document.createElement('div');
+      card.className = 'cite-card';
+      card.innerHTML = `<div class="cite-file"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${src}</div><div class="score-bar"><div class="score-fill" style="width:${score}%"></div></div>`;
+      citationsEl.appendChild(card);
+    });
+  }
+
+  function addFilePill(name, status, detail='') {
+    const pill = document.createElement('div');
+    const cls = status==='loading'?'pill-loading':status==='ok'?'pill-ok':'pill-err';
+    pill.className = `file-pill ${cls}`;
+    const icon = status==='loading'?'⏳':status==='ok'?'✓':'✗';
+    pill.textContent = `${icon} ${name}${detail?' — '+detail:''}`;
+    fileList.appendChild(pill);
+    return pill;
+  }
+
+  function updateIngestedSidebar(filename) {
+    if (!ingestedFiles.includes(filename)) {
+      ingestedFiles.push(filename);
+    }
+    const section = document.getElementById('ingestedSection');
+    const list    = document.getElementById('ingestedList');
+    section.style.display = 'block';
+    list.innerHTML = ingestedFiles.map(f =>
+      `<div class="ingested-file"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${f}</div>`
+    ).join('');
+  }
+
+  // ── Upload logic ──────────────────────────────────────────────────────────
+
+  async function uploadFile(file) {
+    const pill = addFilePill(file.name, 'loading');
+    uploadProg.style.display = 'block';
+    uploadFill.style.width = '30%';
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const res = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+      uploadFill.style.width = '100%';
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        pill.className = 'file-pill pill-err';
+        pill.textContent = `✗ ${file.name} — ${data.detail ?? 'Upload failed'}`;
+        addSystemMsg(`Failed to upload "${file.name}": ${data.detail ?? 'Unknown error'}`, 'error');
+        return;
+      }
+
+      pill.className = 'file-pill pill-ok';
+      pill.textContent = `✓ ${file.name} — ${data.chunks_added} chunks, ${data.words_extracted.toLocaleString()} words`;
+      updateIngestedSidebar(file.name);
+      addSystemMsg(`"${file.name}" ingested — ${data.chunks_added} chunks added. You can now ask questions about it.`);
+
+    } catch (e) {
+      pill.className = 'file-pill pill-err';
+      pill.textContent = `✗ ${file.name} — Network error`;
+      addSystemMsg(`Could not upload "${file.name}". Is the server running?`, 'error');
+    } finally {
+      setTimeout(() => {
+        uploadProg.style.display = 'none';
+        uploadFill.style.width = '0';
+      }, 800);
+    }
+  }
+
+  async function handleFiles(files) {
+    for (const file of Array.from(files)) {
+      await uploadFile(file);
+    }
+  }
+
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // ── Query / streaming ─────────────────────────────────────────────────────
+
+  async function sendQuery() {
+    const q = inputEl.value.trim();
+    if (!q || busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+
+    addMsg(q, 'user');
+    const thinking = addThinking();
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch(`${API}/query/stream`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({query: q}),
+      });
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', streamEl = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, {stream: true});
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let evt;
+          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (evt.type === 'meta') {
+            thinking.remove();
+            streamEl = addBotStreamMsg(evt.rewritten_query || '');
+            updateStats({chunks_retrieved:evt.chunks_retrieved, chunks_used:evt.chunks_used, sources:evt.sources});
+            updateCitations(evt.sources);
+          } else if (evt.type === 'token' && streamEl) {
+            streamEl.bubble.insertBefore(document.createTextNode(evt.text), streamEl.cursor);
+            scroll();
+          } else if (evt.type === 'done' && streamEl) {
+            streamEl.cursor.remove();
+            streamEl.badge.remove();
+            updateStats({elapsed: evt.elapsed_seconds});
+          } else if (evt.type === 'error') {
+            thinking.remove();
+            addSystemMsg('Error: ' + evt.message, 'error');
+          }
+        }
+      }
+    } catch (err) {
+      thinking.remove();
+      addSystemMsg('Could not connect to server. Is uvicorn running on localhost:8000?', 'error');
+    } finally {
+      busy = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  inputEl.addEventListener('keydown', e => {
+    if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); }
+  });
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120)+'px';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2026-05-23T06:37:15.743653+00:00",
+    "query": "What is Difference between Stack and Queue ?",
+    "answer_length": 1070,
+    "sources": [
+      "Narasimha Karumanchi - Coding Interview Questions-CareerMonk Publ. (2016) (1).pdf",
+      "Data Structures and Algorithms Made Easy in Java .pdf"
+    ],
+    "chunks_retrieved": 8,
+    "chunks_used": 3,
+    "chunks_filtered_out": 5,
+    "filter_rate": 62.5,
+    "elapsed_seconds": 7.882
+  },
+  {
+    "id": 2,
+    "timestamp": "2026-05-23T06:42:27.576226+00:00",
+    "query": "what is Dynamic Progrmming?",
+    "answer_length": 1042,
+    "sources": [
+      "Narasimha Karumanchi - Coding Interview Questions-CareerMonk Publ. (2016) (1).pdf",
+      "Data Structures and Algorithms Made Easy in Java .pdf",
+      "Narasimha Karumanchi - Data Structure and Algorithmic Thinking with Python_ Data Structure and Algorithmic Puzzles-Careermonk Publications (2015).pdf"
+    ],
+    "chunks_retrieved": 8,
+    "chunks_used": 4,
+    "chunks_filtered_out": 4,
+    "filter_rate": 50.0,
+    "elapsed_seconds": 7.618
+  },
+  {
+    "id": 3,
+    "timestamp": "2026-05-23T06:48:55.617517+00:00",
+    "query": "What is String?",
+    "answer_length": 478,
+    "sources": [
+      "Narasimha Karumanchi - Coding Interview Questions-CareerMonk Publ. (2016) (1).pdf"
+    ],
+    "chunks_retrieved": 8,
+    "chunks_used": 2,
+    "chunks_filtered_out": 6,
+    "filter_rate": 75.0,
+    "elapsed_seconds": 3.085
+  },
+  {
+    "id": 4,
+    "timestamp": "2026-05-23T06:50:23.532268+00:00",
+    "query": "What is String ?",
+    "answer_length": 520,
+    "sources": [
+      "Narasimha Karumanchi - Coding Interview Questions-CareerMonk Publ. (2016) (1).pdf"
+    ],
+    "chunks_retrieved": 8,
+    "chunks_used": 2,
+    "chunks_filtered_out": 6,
+    "filter_rate": 75.0,
+    "elapsed_seconds": 3.736
+  },
+  {
+    "id": 5,
+    "timestamp": "2026-05-26T06:08:36.090043+00:00",
+    "query": "What is Stack ?",
+    "answer_length": 891,
+    "sources": [
+      "Data Structures and Algorithms Made Easy in Java .pdf"
+    ],
+    "chunks_retrieved": 8,
+    "chunks_used": 3,
+    "chunks_filtered_out": 5,
+    "filter_rate": 62.5,
+    "elapsed_seconds": 4.599
+  }
+]
